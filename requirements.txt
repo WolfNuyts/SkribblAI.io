@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+torch
+pillow
+pandas
+git+https://github.com/openai/CLIP.git 
