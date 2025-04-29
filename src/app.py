@@ -5,13 +5,14 @@ from PIL import Image
 import io
 from pydantic import BaseModel
 import base64
+from functools import lru_cache
 
 app = FastAPI()
 
 # Add CORS middleware immediately after app creation
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or restrict to ["https://skribbl.io"]
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,13 +27,18 @@ class PredictionRequest(BaseModel):
     hints: dict[int, str] = {}
 
 
-@app.post("/predict")
-async def predict(
-    request: PredictionRequest
-):  
-    image_bytes = base64.b64decode(request.image_base64)
+@lru_cache(maxsize=128)
+def cached_predict(image_base64: str, word_length: int, hints_tuple: tuple):
+    image_bytes = base64.b64decode(image_base64)
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    result = predictor.predict_word(image, request.word_length, request.hints)
-    # Convert all numpy floats to Python floats
-    result = {k: float(v) for k, v in result.items()}
-    return result 
+    hints = dict(hints_tuple)
+    result = predictor.predict_word(image, word_length, hints)
+    # Return as tuple of (k, float(v)), sorting by value descending
+    return tuple(sorted(((k, float(v)) for k, v in result.items()), key=lambda x: x[1], reverse=True))
+
+@app.post("/predict")
+async def predict(request: PredictionRequest):
+    hints_tuple = tuple(sorted(request.hints.items()))
+    result = cached_predict(request.image_base64, request.word_length, hints_tuple)
+    # Return as dict, sorted by value descending
+    return dict(result) 
