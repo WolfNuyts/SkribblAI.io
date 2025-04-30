@@ -1,9 +1,16 @@
+// Get the canvas element and extract its image as a base64 string
 const canvas = document.querySelector('canvas');
 const imageBase64 = canvas ? canvas.toDataURL('image/png').split(',')[1] : "";
+// Get all hint elements (each letter/underscore in the word)
 const hintElems = Array.from(document.querySelectorAll('.hints .hint'));
+// The length of the word to guess
 const wordLength = hintElems.length;
 
-let hints = {};
+let hints = {}; // Stores revealed letters by their position
+let excludedWords = []; // Words that have been tried and excluded
+let prevWordLength = null; // Track previous word length to reset excludedWords if needed
+let prevHintCount = null; // Track previous hint count to reset excludedWords if needed
+// Populate the hints object with revealed letters
 hintElems.forEach((elem, idx) => {
     const letter = elem.textContent;
     if (letter && letter !== '_' && letter !== '') {
@@ -11,14 +18,17 @@ hintElems.forEach((elem, idx) => {
     }
 });
 
+// Prepare the payload to send to the backend
 const payload = {
     image_base64: imageBase64,
     word_length: wordLength,
-    hints: hints
+    hints: hints,
+    excluded_words: excludedWords
 };
 
 // Create a floating window for results
-document.getElementById('skribble-predictor-window')?.remove(); // Remove if already exists
+// Remove the window if it already exists to avoid duplicates
+document.getElementById('skribble-predictor-window')?.remove();
 const resultWindow = document.createElement('div');
 resultWindow.id = 'skribble-predictor-window';
 resultWindow.style.position = 'fixed';
@@ -38,13 +48,31 @@ resultWindow.innerText = 'Waiting for predictions...';
 document.body.appendChild(resultWindow);
 
 function sendRequest() {
-    // Recompute these values every time
+    // Recompute these values every time in case the game state changes
     const canvas = document.querySelector('canvas');
     const imageBase64 = canvas ? canvas.toDataURL('image/png').split(',')[1] : "";
     const hintElems = Array.from(document.querySelectorAll('.hints .hint'));
     const wordLength = hintElems.length;
+    // Count how many hints (revealed letters) are present
+    const hintCount = hintElems.filter(elem => {
+        const letter = elem.textContent;
+        return letter && letter !== '_' && letter !== '';
+    }).length;
+
+    // Clear excludedWords if the word length changes or hints decrease (new round or undo)
+    if (
+        prevWordLength !== null && (
+            wordLength !== prevWordLength ||
+            hintCount < prevHintCount
+        )
+    ) {
+        excludedWords = [];
+    }
+    prevWordLength = wordLength;
+    prevHintCount = hintCount;
 
     let hints = {};
+    // Update hints with current revealed letters
     hintElems.forEach((elem, idx) => {
         const letter = elem.textContent;
         if (letter && letter !== '_' && letter !== '') {
@@ -52,15 +80,18 @@ function sendRequest() {
         }
     });
 
+    // Prepare the payload for the backend
     const payload = {
         image_base64: imageBase64,
         word_length: wordLength,
-        hints: hints
+        hints: hints,
+        excluded_words: excludedWords
     };
 
-    // Log word count and hints to the console
-    console.log(`[SkribbleAI] Sending to backend: word length = ${wordLength}, hints =`, hints);
+    // Log the current state for debugging
+    console.log(`[SkribbleAI] Sending to backend: word length = ${wordLength}, hints =`, hints, ', excludedWords =', excludedWords);
 
+    // Send the request to the backend for predictions
     fetch("http://localhost:8000/predict", {
         method: "POST",
         headers: {
@@ -71,6 +102,7 @@ function sendRequest() {
     .then(response => response.json())
     .then(data => {
         if (typeof data === 'object' && data !== null) {
+            // Build the result HTML with clickable predictions
             let html = '<b>Prediction result:</b><br>';
             html += '<ul style="padding-left: 18px;">';
             for (const [key, value] of Object.entries(data)) {
@@ -79,10 +111,15 @@ function sendRequest() {
             html += '</ul>';
             resultWindow.innerHTML = html;
 
-            // Add click event listeners to each word
+            // Add click event listeners to each prediction word
             document.querySelectorAll('.skribble-predict-word').forEach(elem => {
                 elem.addEventListener('click', function() {
                     const word = this.getAttribute('data-word');
+                    // Add word to excludedWords so it won't be suggested again
+                    if (!excludedWords.includes(word)) {
+                        excludedWords.push(word);
+                    }
+                    // Autofill the chat input and submit the guess
                     const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
                     const formElem = document.querySelector('#game-chat form');
                     if (inputElem && formElem) {
@@ -94,13 +131,15 @@ function sendRequest() {
                 });
             });
         } else {
+            // If backend returns a string or error
             resultWindow.innerHTML = `<b>Prediction result:</b><br>${data}`;
         }
     })
     .catch(error => {
+        // Show error in the floating window
         resultWindow.innerHTML = `<b>Error:</b> ${error}`;
     });
 }
 
-// Send every 2 seconds
+// Periodically send requests every 2 seconds to update predictions
 setInterval(sendRequest, 2000);

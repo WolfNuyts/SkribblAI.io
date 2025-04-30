@@ -10,7 +10,7 @@ A tool to predict Skribbl.io words from drawings using OpenAI's CLIP.
    ```
 
 2. **Download the word list**
-   - The file `data/Skribbl-words.csv` should already be included. If not, add your own word list in the same format.
+   - The file `data/wordlist.txt` should already be included. If not, add your own word list in the same format.
 
 3. **Start the backend server**
    ```bash

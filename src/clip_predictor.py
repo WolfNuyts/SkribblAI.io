@@ -14,10 +14,15 @@ class CLIPWordPredictor:
             if len(word) > 1:
                 self.labels[word] = "Pixel drawing of " + word
 
-    def predict_word(self, image, word_length, hints={}):
+    def predict_word(self, image, word_length, hints={}, excluded_words=[]):
+
+        excluded_words = set([word.strip().lower() for word in excluded_words])
         
-        def is_valid_word(word, hints):
+        def is_valid_word(word, hints, excluded_words):
             if len(word) != word_length:
+                return False
+
+            if word in excluded_words:
                 return False
 
             for idx, char in enumerate(word):
@@ -32,7 +37,7 @@ class CLIPWordPredictor:
             
             return True
         
-        labels_subset = {key: value for key, value in self.labels.items() if is_valid_word(key, hints)}
+        labels_subset = {key: value for key, value in self.labels.items() if is_valid_word(key, hints, excluded_words)}
 
         image = self.preprocess(image).unsqueeze(0).cuda()
         text = clip.tokenize([label for label in labels_subset.values()]).cuda()
