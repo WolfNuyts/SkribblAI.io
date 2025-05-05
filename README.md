@@ -9,10 +9,7 @@ A tool to predict Skribbl.io words from drawings using OpenAI's CLIP.
    pip install -r requirements.txt
    ```
 
-2. **Download the word list**
-   - The file `data/wordlist.txt` should already be included. If not, add your own word list in the same format.
-
-3. **Start the backend server**
+2. **Start the backend server**
    ```bash
    python main.py
    ```
@@ -25,10 +22,9 @@ A tool to predict Skribbl.io words from drawings using OpenAI's CLIP.
 3. **Paste it into your browser's developer console** (press F12 or right-click → Inspect → Console tab).
 4. The script will create a floating window in the top-right corner and poll predictions from your local server every 2 seconds.
 
-### Customizing the Script
-- The script expects the backend to be running locally on port 8000.
 
 ## Notes
 - Requires a CUDA-capable GPU for best performance (CLIP runs on CUDA by default).
-- Make sure the backend server is running before using the browser script.
-- For development or debugging, you can modify the polling interval or UI in `skribble_script.js`.
+- Make sure the backend server is running before using the browser script. The script expects the backend to be running locally on port 8000.
+- If you enable auto-submit on a very small interval, Skribble.io will kick you.
+- You can add your own words to data/wordlist.txt if you want to be able to guess them.
