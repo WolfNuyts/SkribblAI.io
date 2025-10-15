@@ -19,9 +19,9 @@ hintElems.forEach((elem, idx) => {
 
 // Create a floating window for results
 // Remove the window if it already exists to avoid duplicates
-document.getElementById('skribble-predictor-window')?.remove();
+document.getElementById('skribbl-predictor-window')?.remove();
 const resultWindow = document.createElement('div');
-resultWindow.id = 'skribble-predictor-window';
+resultWindow.id = 'skribbl-predictor-window';
 resultWindow.style.position = 'fixed';
 resultWindow.style.top = '10px';
 resultWindow.style.right = '10px';
@@ -47,7 +47,7 @@ windowHeader.style.paddingBottom = '8px';
 windowHeader.style.borderBottom = '1px solid rgba(140,255,255,0.3)';
 
 const windowTitle = document.createElement('div');
-windowTitle.innerText = 'SkribbleAI Predictor';
+windowTitle.innerText = 'SkribblAI Predictor';
 windowTitle.style.fontWeight = 'bold';
 windowTitle.style.fontSize = '16px';
 windowTitle.style.color = '#8cf';
@@ -86,11 +86,11 @@ windowHeader.appendChild(minimizeButton);
 
 // --- Add window content container ---
 const windowContent = document.createElement('div');
-windowContent.id = 'skribble-window-content';
+windowContent.id = 'skribbl-window-content';
 
 // --- Add a dedicated predictions container ---
 const predictionsDiv = document.createElement('div');
-predictionsDiv.id = 'skribble-predictions';
+predictionsDiv.id = 'skribbl-predictions';
 predictionsDiv.innerHTML = '<b>Waiting for predictions...</b>';
 // --- End predictions container ---
 
@@ -169,7 +169,7 @@ autoSubmitAllCheckboxContainer.style.width = '100%';
 
 // Custom checkbox for top prediction
 const autoSubmitCheckbox = document.createElement('span');
-autoSubmitCheckbox.id = 'skribble-auto-submit';
+autoSubmitCheckbox.id = 'skribbl-auto-submit';
 autoSubmitCheckbox.style.display = 'inline-block';
 autoSubmitCheckbox.style.width = '18px';
 autoSubmitCheckbox.style.height = '18px';
@@ -195,7 +195,7 @@ autoSubmitCheckbox.addEventListener('click', function() {
 });
 
 const autoSubmitLabel = document.createElement('label');
-autoSubmitLabel.htmlFor = 'skribble-auto-submit';
+autoSubmitLabel.htmlFor = 'skribbl-auto-submit';
 autoSubmitLabel.style.marginLeft = '6px';
 autoSubmitLabel.innerText = 'Auto-submit top prediction';
 
@@ -204,7 +204,7 @@ autoSubmitCheckboxContainer.appendChild(autoSubmitLabel);
 
 // Custom checkbox for all >50%
 const autoSubmitAllCheckbox = document.createElement('span');
-autoSubmitAllCheckbox.id = 'skribble-auto-submit-all';
+autoSubmitAllCheckbox.id = 'skribbl-auto-submit-all';
 autoSubmitAllCheckbox.style.display = 'inline-block';
 autoSubmitAllCheckbox.style.width = '18px';
 autoSubmitAllCheckbox.style.height = '18px';
@@ -232,7 +232,7 @@ autoSubmitAllCheckbox.addEventListener('click', function() {
 
 // Create the threshold input
 const autoSubmitAllLabel = document.createElement('label');
-autoSubmitAllLabel.htmlFor = 'skribble-auto-submit-all';
+autoSubmitAllLabel.htmlFor = 'skribbl-auto-submit-all';
 autoSubmitAllLabel.style.marginLeft = '6px';
 autoSubmitAllLabel.style.display = 'flex';
 autoSubmitAllLabel.style.alignItems = 'center';
@@ -340,7 +340,7 @@ minimizedButton.style.justifyContent = 'center';
 minimizedButton.style.transition = 'all 0.3s ease';
 minimizedButton.style.zIndex = '99999';
 minimizedButton.style.userSelect = 'none';
-minimizedButton.title = 'Maximize SkribbleAI Predictor';
+minimizedButton.title = 'Maximize SkribblAI Predictor';
 
 // Hover effects for minimized button
 minimizedButton.addEventListener('mouseenter', function() {
@@ -390,7 +390,7 @@ function sendRequest() {
         wordLength !== prevWordLength ||
         hintCount < prevHintCount
     )) {
-        console.log('[SkribbleAI] New round detected - word length or hints changed');
+        console.log('[SkribblAI] New round detected - word length or hints changed');
     }
     prevWordLength = wordLength;
     prevHintCount = hintCount;
@@ -408,7 +408,7 @@ function sendRequest() {
     function getChatGuesses() {
         const chatContent = document.querySelector('.chat-content');
         if (!chatContent) {
-            console.log('[SkribbleAI] Chat content not found');
+            console.log('[SkribblAI] Chat content not found');
             return [];
         }
 
@@ -466,7 +466,7 @@ function sendRequest() {
     };
 
     // Log the current state for debugging
-    console.log(`[SkribbleAI] Sending to backend: word length = ${wordLength}, hints =`, hints, ', chatGuesses =', chatGuesses);
+    console.log(`[SkribblAI] Sending to backend: word length = ${wordLength}, hints =`, hints, ', chatGuesses =', chatGuesses);
 
     // Send the request to the backend for predictions
     fetch("http://localhost:8000/predict", {
@@ -482,14 +482,14 @@ function sendRequest() {
             // Build the result HTML with clickable predictions
             let html = '<ul style="padding-left: 18px;">';
             for (const [key, value] of Object.entries(data)) {
-                html += `<li style="cursor:pointer;color:#8cf;" class="skribble-predict-word" data-word="${key}">${key} (${(value * 100).toFixed(1)}%)</li>`;
+                html += `<li style="cursor:pointer;color:#8cf;" class="skribbl-predict-word" data-word="${key}">${key} (${(value * 100).toFixed(1)}%)</li>`;
             }
             html += '</ul>';
             // --- Only update the predictionsDiv ---
             predictionsDiv.innerHTML = html;
 
             // Add click event listeners to each prediction word
-            predictionsDiv.querySelectorAll('.skribble-predict-word').forEach(elem => {
+            predictionsDiv.querySelectorAll('.skribbl-predict-word').forEach(elem => {
                 elem.addEventListener('click', function() {
                     const word = this.getAttribute('data-word');
                     // Autofill the chat input and submit the guess
@@ -508,7 +508,7 @@ function sendRequest() {
             const isWordComplete = hintCount === wordLength && wordLength > 0;
             
             if (isWordComplete) {
-                console.log('[SkribbleAI] Word is complete, skipping auto-submission');
+                console.log('[SkribblAI] Word is complete, skipping auto-submission');
             } else {
                 // Auto-submit logic for all >50%
                 if (autoSubmitAllChecked) {
