@@ -7,9 +7,8 @@ const hintElems = Array.from(document.querySelectorAll('.hints .hint'));
 const wordLength = hintElems.length;
 
 let hints = {}; // Stores revealed letters by their position
-let excludedWords = []; // Words that have been tried and excluded
-let prevWordLength = null; // Track previous word length to reset excludedWords if needed
-let prevHintCount = null; // Track previous hint count to reset excludedWords if needed
+let prevWordLength = null; // Track previous word length for debugging
+let prevHintCount = null; // Track previous hint count for debugging
 // Populate the hints object with revealed letters
 hintElems.forEach((elem, idx) => {
     const letter = elem.textContent;
@@ -17,14 +16,6 @@ hintElems.forEach((elem, idx) => {
         hints[idx] = letter;
     }
 });
-
-// Prepare the payload to send to the backend
-const payload = {
-    image_base64: imageBase64,
-    word_length: wordLength,
-    hints: hints,
-    excluded_words: excludedWords
-};
 
 // Create a floating window for results
 // Remove the window if it already exists to avoid duplicates
@@ -281,14 +272,12 @@ function sendRequest() {
         return letter && letter !== '_' && letter !== '';
     }).length;
 
-    // Clear excludedWords if the word length changes or hints decrease (new round or undo)
-    if (
-        prevWordLength !== null && (
-            wordLength !== prevWordLength ||
-            hintCount < prevHintCount
-        )
-    ) {
-        excludedWords = [];
+    // Track word length and hint changes for debugging
+    if (prevWordLength !== null && (
+        wordLength !== prevWordLength ||
+        hintCount < prevHintCount
+    )) {
+        console.log('[SkribbleAI] New round detected - word length or hints changed');
     }
     prevWordLength = wordLength;
     prevHintCount = hintCount;
@@ -302,16 +291,69 @@ function sendRequest() {
         }
     });
 
+    // Function to extract chat guesses from current round
+    function getChatGuesses() {
+        const chatContent = document.querySelector('.chat-content');
+        if (!chatContent) {
+            console.log('[SkribbleAI] Chat content not found');
+            return [];
+        }
+
+        const chatMessages = chatContent.querySelectorAll('p');
+        let lastWordWasIndex = -1;
+        
+        // Find the last "The word was" message to identify start of current round
+        chatMessages.forEach((msg, index) => {
+            const text = msg.textContent || '';
+            if (text.includes('The word was')) {
+                lastWordWasIndex = index;
+            }
+        });
+
+        const guesses = [];
+        
+        // Process messages after the last "The word was" message
+        for (let i = lastWordWasIndex + 1; i < chatMessages.length; i++) {
+            const messageText = chatMessages[i].textContent || '';
+            
+            // Check if this is a guess (contains ':' indicating 'username: guess' format)
+            if (messageText.includes(':')) {
+                const colonIndex = messageText.indexOf(':');
+                if (colonIndex > 0 && colonIndex < messageText.length - 1) {
+                    // Extract the guess part (everything after the colon and space)
+                    const guessText = messageText.substring(colonIndex + 1).trim();
+                    if (guessText.length > 0) {
+                        // Clean the guess and treat it as a single unit
+                        const cleanedGuess = guessText
+                            .toLowerCase()
+                            .replace(/[^\w\s-]/g, ' ') // Replace punctuation with spaces, keep hyphens
+                            .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+                            .trim();
+                        
+                        if (cleanedGuess.length > 1 && cleanedGuess.length <= 50) {
+                            guesses.push(cleanedGuess);
+                        }
+                    }
+                }
+            }
+        }
+
+        return [...new Set(guesses)]; // Remove duplicates
+    }
+
+    // Get chat guesses from current round
+    const chatGuesses = getChatGuesses();
+
     // Prepare the payload for the backend
     const payload = {
         image_base64: imageBase64,
         word_length: wordLength,
         hints: hints,
-        excluded_words: excludedWords
+        excluded_words: chatGuesses  // Only use chat-based guesses
     };
 
     // Log the current state for debugging
-    console.log(`[SkribbleAI] Sending to backend: word length = ${wordLength}, hints =`, hints, ', excludedWords =', excludedWords);
+    console.log(`[SkribbleAI] Sending to backend: word length = ${wordLength}, hints =`, hints, ', chatGuesses =', chatGuesses);
 
     // Send the request to the backend for predictions
     fetch("http://localhost:8000/predict", {
@@ -337,10 +379,6 @@ function sendRequest() {
             predictionsDiv.querySelectorAll('.skribble-predict-word').forEach(elem => {
                 elem.addEventListener('click', function() {
                     const word = this.getAttribute('data-word');
-                    // Add word to excludedWords so it won't be suggested again
-                    if (!excludedWords.includes(word)) {
-                        excludedWords.push(word);
-                    }
                     // Autofill the chat input and submit the guess
                     const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
                     const formElem = document.querySelector('#game-chat form');
@@ -361,10 +399,8 @@ function sendRequest() {
                         autoSubmitAllThreshold >= 1 &&
                         autoSubmitAllThreshold <= 100 &&
                         Number.isInteger(autoSubmitAllThreshold) &&
-                        value * 100 > autoSubmitAllThreshold &&
-                        !excludedWords.includes(word)
+                        value * 100 > autoSubmitAllThreshold
                     ) {
-                        excludedWords.push(word);
                         const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
                         const formElem = document.querySelector('#game-chat form');
                         if (inputElem && formElem) {
@@ -379,16 +415,12 @@ function sendRequest() {
                 const topEntry = Object.entries(data)[0];
                 if (topEntry) {
                     const [word] = topEntry;
-                    // Only submit if not already excluded
-                    if (!excludedWords.includes(word)) {
-                        excludedWords.push(word);
-                        const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
-                        const formElem = document.querySelector('#game-chat form');
-                        if (inputElem && formElem) {
-                            inputElem.value = word;
-                            inputElem.focus();
-                            formElem.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-                        }
+                    const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
+                    const formElem = document.querySelector('#game-chat form');
+                    if (inputElem && formElem) {
+                        inputElem.value = word;
+                        inputElem.focus();
+                        formElem.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
                     }
                 }
             }
