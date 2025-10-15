@@ -35,6 +35,58 @@ resultWindow.style.fontSize = '14px';
 resultWindow.style.maxWidth = '350px';
 resultWindow.style.maxHeight = '450px';
 resultWindow.style.overflowY = 'auto';
+resultWindow.style.transition = 'all 0.3s ease-in-out';
+
+// --- Add window header with minimize button ---
+const windowHeader = document.createElement('div');
+windowHeader.style.display = 'flex';
+windowHeader.style.justifyContent = 'space-between';
+windowHeader.style.alignItems = 'center';
+windowHeader.style.marginBottom = '12px';
+windowHeader.style.paddingBottom = '8px';
+windowHeader.style.borderBottom = '1px solid rgba(140,255,255,0.3)';
+
+const windowTitle = document.createElement('div');
+windowTitle.innerText = 'SkribbleAI Predictor';
+windowTitle.style.fontWeight = 'bold';
+windowTitle.style.fontSize = '16px';
+windowTitle.style.color = '#8cf';
+windowTitle.style.letterSpacing = '1px';
+
+const minimizeButton = document.createElement('button');
+minimizeButton.innerHTML = '−';
+minimizeButton.style.background = 'none';
+minimizeButton.style.border = '2px solid #8cf';
+minimizeButton.style.color = '#8cf';
+minimizeButton.style.cursor = 'pointer';
+minimizeButton.style.fontSize = '18px';
+minimizeButton.style.fontWeight = 'bold';
+minimizeButton.style.width = '28px';
+minimizeButton.style.height = '28px';
+minimizeButton.style.borderRadius = '4px';
+minimizeButton.style.display = 'flex';
+minimizeButton.style.alignItems = 'center';
+minimizeButton.style.justifyContent = 'center';
+minimizeButton.style.transition = 'all 0.2s ease';
+minimizeButton.style.userSelect = 'none';
+
+// Hover effects for minimize button
+minimizeButton.addEventListener('mouseenter', function() {
+    this.style.background = 'rgba(140,255,255,0.2)';
+    this.style.transform = 'scale(1.1)';
+});
+
+minimizeButton.addEventListener('mouseleave', function() {
+    this.style.background = 'none';
+    this.style.transform = 'scale(1)';
+});
+
+windowHeader.appendChild(windowTitle);
+windowHeader.appendChild(minimizeButton);
+
+// --- Add window content container ---
+const windowContent = document.createElement('div');
+windowContent.id = 'skribble-window-content';
 
 // --- Add a dedicated predictions container ---
 const predictionsDiv = document.createElement('div');
@@ -253,12 +305,73 @@ predictionsTitle.style.textAlign = 'left';
 // --- End predictions title ---
 
 // --- Append settings first, then predictions ---
-resultWindow.appendChild(settingsTitle);
-resultWindow.appendChild(pollingIntervalRow);
-resultWindow.appendChild(autoSubmitDiv);
-resultWindow.appendChild(predictionsTitle); // Insert predictions title here
-resultWindow.appendChild(predictionsDiv);
+resultWindow.appendChild(windowHeader);
+resultWindow.appendChild(windowContent);
+
+// Move all content into the windowContent container
+windowContent.appendChild(settingsTitle);
+windowContent.appendChild(pollingIntervalRow);
+windowContent.appendChild(autoSubmitDiv);
+windowContent.appendChild(predictionsTitle);
+windowContent.appendChild(predictionsDiv);
+
 document.body.appendChild(resultWindow);
+
+// --- Minimize/Maximize functionality ---
+let isMinimized = false;
+
+// Create minimized button (initially hidden)
+const minimizedButton = document.createElement('button');
+minimizedButton.innerHTML = '🔮';
+minimizedButton.style.position = 'fixed';
+minimizedButton.style.top = '10px';
+minimizedButton.style.right = '10px';
+minimizedButton.style.background = 'rgba(0,0,0,0.85)';
+minimizedButton.style.border = '2px solid #8cf';
+minimizedButton.style.color = '#8cf';
+minimizedButton.style.cursor = 'pointer';
+minimizedButton.style.fontSize = '20px';
+minimizedButton.style.width = '48px';
+minimizedButton.style.height = '48px';
+minimizedButton.style.borderRadius = '50%';
+minimizedButton.style.display = 'none';
+minimizedButton.style.alignItems = 'center';
+minimizedButton.style.justifyContent = 'center';
+minimizedButton.style.transition = 'all 0.3s ease';
+minimizedButton.style.zIndex = '99999';
+minimizedButton.style.userSelect = 'none';
+minimizedButton.title = 'Maximize SkribbleAI Predictor';
+
+// Hover effects for minimized button
+minimizedButton.addEventListener('mouseenter', function() {
+    this.style.background = 'rgba(140,255,255,0.2)';
+    this.style.transform = 'scale(1.2)';
+    this.style.boxShadow = '0 0 20px rgba(140,255,255,0.5)';
+});
+
+minimizedButton.addEventListener('mouseleave', function() {
+    this.style.background = 'rgba(0,0,0,0.85)';
+    this.style.transform = 'scale(1)';
+    this.style.boxShadow = 'none';
+});
+
+document.body.appendChild(minimizedButton);
+
+function minimizeWindow() {
+    isMinimized = true;
+    resultWindow.style.display = 'none';
+    minimizedButton.style.display = 'flex';
+}
+
+function maximizeWindow() {
+    isMinimized = false;
+    minimizedButton.style.display = 'none';
+    resultWindow.style.display = 'block';
+}
+
+// Add click events
+minimizeButton.addEventListener('click', minimizeWindow);
+minimizedButton.addEventListener('click', maximizeWindow);
 
 function sendRequest() {
     // Recompute these values every time in case the game state changes
@@ -391,16 +504,36 @@ function sendRequest() {
                 });
             });
 
-            // Auto-submit logic for all >50%
-            if (autoSubmitAllChecked) {
-                for (const [word, value] of Object.entries(data)) {
-                    if (
-                        typeof autoSubmitAllThreshold === 'number' &&
-                        autoSubmitAllThreshold >= 1 &&
-                        autoSubmitAllThreshold <= 100 &&
-                        Number.isInteger(autoSubmitAllThreshold) &&
-                        value * 100 > autoSubmitAllThreshold
-                    ) {
+            // Check if word is already complete (all hints revealed) - if so, don't auto-submit
+            const isWordComplete = hintCount === wordLength && wordLength > 0;
+            
+            if (isWordComplete) {
+                console.log('[SkribbleAI] Word is complete, skipping auto-submission');
+            } else {
+                // Auto-submit logic for all >50%
+                if (autoSubmitAllChecked) {
+                    for (const [word, value] of Object.entries(data)) {
+                        if (
+                            typeof autoSubmitAllThreshold === 'number' &&
+                            autoSubmitAllThreshold >= 1 &&
+                            autoSubmitAllThreshold <= 100 &&
+                            Number.isInteger(autoSubmitAllThreshold) &&
+                            value * 100 > autoSubmitAllThreshold
+                        ) {
+                            const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
+                            const formElem = document.querySelector('#game-chat form');
+                            if (inputElem && formElem) {
+                                inputElem.value = word;
+                                inputElem.focus();
+                                formElem.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                            }
+                        }
+                    }
+                } else if (autoSubmitChecked) {
+                    // Find the top prediction (first entry)
+                    const topEntry = Object.entries(data)[0];
+                    if (topEntry) {
+                        const [word] = topEntry;
                         const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
                         const formElem = document.querySelector('#game-chat form');
                         if (inputElem && formElem) {
@@ -408,19 +541,6 @@ function sendRequest() {
                             inputElem.focus();
                             formElem.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
                         }
-                    }
-                }
-            } else if (autoSubmitChecked) {
-                // Find the top prediction (first entry)
-                const topEntry = Object.entries(data)[0];
-                if (topEntry) {
-                    const [word] = topEntry;
-                    const inputElem = document.querySelector('#game-chat input[data-translate="placeholder"]');
-                    const formElem = document.querySelector('#game-chat form');
-                    if (inputElem && formElem) {
-                        inputElem.value = word;
-                        inputElem.focus();
-                        formElem.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
                     }
                 }
             }
